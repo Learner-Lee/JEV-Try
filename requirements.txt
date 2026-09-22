@@ -1,0 +1,9 @@
+# 先建虚拟环境，再装依赖：
+#   python3 -m venv .venv
+#   ./.venv/bin/pip install -r requirements.txt
+#
+# 运行 demo 前需要设置 API key（https://console.typesafe.ai/keys）：
+#   export TYPESAFE_API_KEY=...
+#   ./.venv/bin/python jev_demo.py all
+
+typesafe-sdk==0.7.1
