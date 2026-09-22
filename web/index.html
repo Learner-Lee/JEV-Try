@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 声明支持双主题，避免未主题化内容闪烁 -->
+<meta name="color-scheme" content="light dark">
+<title>Jev 面板</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>◧</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="mark" aria-hidden="true">◧</span>
+    <div>
+      <h1>Jev 面板</h1>
+      <p class="sub">类型化判断 + 校准概率的可视化</p>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span class="keynote" title="API key 只存在于本地服务端进程，浏览器从不接触它">
+      <span aria-hidden="true">🔒</span> key 在服务端
+    </span>
+    <button type="button" id="theme-toggle" class="ghost" aria-live="polite">
+      <span id="theme-label">跟随系统</span>
+    </button>
+  </div>
+</header>
+
+<main>
+
+  <!-- ── 输入 ───────────────────────────────────────────────── -->
+  <section class="panel" aria-labelledby="h-input">
+    <div class="panel-head">
+      <h2 id="h-input">被评估的材料 <span class="tag">state</span></h2>
+      <div class="row">
+        <button type="button" class="ghost" data-sample="en">英文样例</button>
+        <button type="button" class="ghost" data-sample="zh">中文样例</button>
+        <span class="muted" id="state-meta"></span>
+      </div>
+    </div>
+    <label class="sr-only" for="state">state 文本</label>
+    <textarea id="state" rows="6" spellcheck="false"
+      placeholder="粘贴任意文档… 或点上面的样例按钮"></textarea>
+  </section>
+
+  <!-- ── 标签页 ─────────────────────────────────────────────── -->
+  <div class="tabs" role="tablist" aria-label="视图">
+    <button role="tab" id="tab-fanout"  aria-controls="view-fanout"  aria-selected="true">投机扇出</button>
+    <button role="tab" id="tab-weights" aria-controls="view-weights" aria-selected="false">权重实验</button>
+    <button role="tab" id="tab-bench"   aria-controls="view-bench"   aria-selected="false">打包 vs 拆开</button>
+  </div>
+
+  <!-- ── 视图 1：投机扇出 ───────────────────────────────────── -->
+  <section id="view-fanout" role="tabpanel" aria-labelledby="tab-fanout" class="view">
+    <div class="actions">
+      <button type="button" id="run-fanout" class="primary">一次请求，问完 13 道题</button>
+      <span class="muted">所有问题共享同一份 state，并行评估、互相看不见</span>
+    </div>
+
+    <div id="fanout-stats" class="tiles" hidden></div>
+
+    <div id="fanout-legend" class="notice" hidden>
+      <strong>投机提问</strong>指只在某些分支才用得上的问题。下面被标为
+      <span class="chip chip-drop">已丢弃</span> 的答案，代码这次没用到 ——
+      但它们和别的题在同一次往返里回来，没有多花一次调用。
+    </div>
+
+    <div id="fanout-out" class="cards"></div>
+
+    <details id="fanout-table-wrap" hidden>
+      <summary>表格视图（全部数值）</summary>
+      <div class="table-scroll"><table id="fanout-table"></table></div>
+    </details>
+  </section>
+
+  <!-- ── 视图 2：权重实验 ───────────────────────────────────── -->
+  <section id="view-weights" role="tabpanel" aria-labelledby="tab-weights" class="view" hidden>
+    <div class="actions">
+      <button type="button" id="run-weights" class="primary">给 3 个维度打分</button>
+      <span class="muted">打完分之后，拖动权重滑块不会再发任何请求</span>
+    </div>
+
+    <div id="weights-body" hidden>
+      <div class="split">
+        <div>
+          <h3>原始判断 <span class="tag">唯一一次推理</span></h3>
+          <div id="dims-out" class="cards"></div>
+        </div>
+        <div>
+          <h3>权重 <span class="tag">纯前端</span></h3>
+          <div id="sliders" class="sliders"></div>
+          <p class="muted" id="weight-sum"></p>
+
+          <h3>复合得分</h3>
+          <div id="composite" class="composite"></div>
+
+          <p class="callout">
+            API 调用次数：<strong id="call-count">1</strong>
+            <span class="muted">— 随便怎么拖，这个数字不会变。证据和问题语义都没变，
+            重算权重不需要重新推理。</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 视图 3：打包 vs 拆开 ───────────────────────────────── -->
+  <section id="view-bench" role="tabpanel" aria-labelledby="tab-bench" class="view" hidden>
+    <div class="actions">
+      <label for="repeats">重复轮数</label>
+      <input type="range" id="repeats" min="1" max="3" value="1" step="1">
+      <output id="repeats-out">1</output>
+      <button type="button" id="run-bench" class="primary">开跑</button>
+    </div>
+    <p class="muted" id="bench-warn">
+      每轮 = 1 次打包调用 + 13 次逐题调用。重复 ≥2 轮才能把
+      <em>打包是否改变了答案</em> 和 <em>本来就有的运行间噪声</em> 区分开。
+    </p>
+
+    <div id="bench-out" hidden>
+      <div class="tiles" id="bench-tiles"></div>
+      <div class="split">
+        <figure class="chart">
+          <figcaption>成本（美元，越低越好）</figcaption>
+          <div id="chart-cost" class="barchart"></div>
+        </figure>
+        <figure class="chart">
+          <figcaption>耗时（秒，越低越好）</figcaption>
+          <div id="chart-latency" class="barchart"></div>
+        </figure>
+      </div>
+      <div id="bench-noise"></div>
+    </div>
+  </section>
+
+  <p id="error" class="error" hidden role="alert"></p>
+
+</main>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
